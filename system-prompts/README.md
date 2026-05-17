@@ -265,7 +265,7 @@ Copilot CLI's shell injection section is the most technical: it names the specif
 
 **OpenCode** is the only agent that includes **worked conversation examples** directly in the system prompt — a short dialogue log showing how the model should handle specific user inputs. The examples go from trivially terse (`"1 + 2" → "3"`, `"is 13 a prime number?" → "true"`) to a full multi-step refactoring walkthrough with tool calls annotated inline. No other agent teaches by example like this. OpenCode also shares the most DNA with Gemini CLI: both follow a Research → Plan → Implement → Verify loop, both cap text output at 3 lines per response, and both avoid the sub-agent / memory complexity of Claude Code and Copilot CLI. The difference is that Gemini CLI is much more verbose about the reasoning behind each rule, while OpenCode states mandates flatly and trusts the examples to fill in the gaps.
 
-**Pi** is the only fully open-source agent in this group (MIT license, source on GitHub). Its core prompt is intentionally thin — the philosophy is that complexity belongs in extensions and skills, not in a massive hardcoded string. The prompt itself has no memory, no modes, no sub-agents; everything is assembled programmatically from whatever tools and context files are active. It's the most hackable of the five.
+**Pi** is the only fully open-source agent in this group (MIT license, source on GitHub). Its core prompt is intentionally thin — the philosophy is that complexity belongs in extensions and skills, not in a massive hardcoded string. The prompt itself has no memory, no modes, no sub-agents; everything is assembled programmatically from whatever tools and context files are active. It's the most hackable of the five — and uniquely, Pi is also a *framework*: **OpenClaw** (Peter Steinberger's viral agent harness, formerly ClawdBot/MoltBot) is built directly on Pi's npm packages (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-ai`, `@earendil-works/pi-tui`). OpenClaw connects Pi to communication channels (Slack, Discord, etc.) and runs it as a persistent 24/7 service. It was this usage pattern — Claude subscription credentials powering always-on OpenClaw instances — that triggered Anthropic's April 2026 ban on third-party OAuth auth and ultimately led to the Agent SDK credits system. Pi the coding agent became Pi the SDK almost by accident.
 
 ---
 
@@ -281,7 +281,7 @@ Copilot CLI's shell injection section is the most technical: it names the specif
 | Prompt injection defense | ✓ | ✓ | partial | partial | — | — |
 | Git commit co-author | ✓ | ✓ | — | — | — | — |
 | Browser automation agent | — | — | ✓ | — | — | — |
-| Open source | — | — | — | — | — | ✓ |
+| Open source / embeddable SDK | — | — | — | — | — | ✓ |
 | Project context file | CLAUDE.md | plan.md | GEMINI.md | AGENTS.md | — | configurable |
 | Skills / slash commands | ✓ | — | ✓ | — | /help /bug | ✓ |
 | Topic progress updates | — | — | ✓ | via commentary | — | — |
@@ -297,6 +297,8 @@ Prompts were sourced from these public repositories:
 - [x1xhlol/system-prompts-and-models-of-ai-tools](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools) — Cursor, Windsurf, Devin, Replit, Lovable, v0, Manus, Augment Code
 - [Piebald-AI/claude-code-system-prompts](https://github.com/Piebald-AI/claude-code-system-prompts) — Claude Code sub-agent prompts, extracted from Claude Code source
 - [badlogic/pi-mono](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) — Pi coding agent open-source TypeScript source
+- [openclaw/openclaw](https://github.com/openclaw/openclaw) — OpenClaw, built on Pi's SDK packages (context for the Pi-as-framework story)
+- [lucumr.pocoo.org — Pi: The Minimal Agent Within OpenClaw](https://lucumr.pocoo.org/2026/1/31/pi/) — Armin Ronacher's writeup explaining the Pi/OpenClaw relationship
 
 ## Disclaimer
 
