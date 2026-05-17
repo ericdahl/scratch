@@ -117,7 +117,7 @@ system-prompts/
 
 ## Comparison
 
-A deep dive into the five major terminal coding agents: **Claude Code**, **GitHub Copilot CLI**, **Gemini CLI**, **Codex CLI**, and **Pi**. All data sourced directly from the prompt files in this repo.
+A deep dive into the six major terminal coding agents: **Claude Code**, **GitHub Copilot CLI**, **Gemini CLI**, **Codex CLI**, **OpenCode**, and **Pi**. All data sourced directly from the prompt files in this repo.
 
 ### Prompt size
 
@@ -127,6 +127,7 @@ A deep dive into the five major terminal coding agents: **Claude Code**, **GitHu
 | Claude Code | ~59 KB | Includes all tool schemas and detailed memory system |
 | Codex CLI (GPT-5.5) | ~32 KB | Includes memory layout and rich frontend design rules |
 | Gemini CLI | ~29 KB | Leaner core; sub-agent details not embedded |
+| OpenCode | ~16 KB | Mid-size; no memory or sub-agents, but includes worked workflow examples |
 | Pi | ~2 KB | The smallest by far — deliberately minimal, built dynamically at runtime |
 
 Pi is the outlier: its "prompt" is actually a TypeScript function (`buildSystemPrompt()`) that assembles the final string from whichever tools are active. With only the core four tools enabled, it emits roughly 400 words.
@@ -145,6 +146,7 @@ GitHub Copilot CLI embeds complete YAML files for each of its 7 sub-agents *insi
 | Gemini CLI | 4: `codebase_investigator`, `cli_help`, `generalist`, `browser_agent` |
 | Claude Code | 4: `Explore`, `general-purpose`, `Plan`, `statusline-setup` |
 | Codex CLI | 0 visible (no sub-agent system in the prompt) |
+| OpenCode | 0 |
 | Pi | 0 (intentionally — extensibility is via the SDK, not prompt-embedded agents) |
 
 Copilot CLI's sub-agent lineup is the most opinionated. The **rubber-duck** agent is a devil's advocate critic you're supposed to call *before* implementing — it reads your plan and tells you what could go wrong. The **rem-agent** ("REM" as in sleep) consolidates session history into long-term memory in the background, explicitly inspired by how the brain consolidates memories during REM sleep. The **subconscious** sidekick silently reads a "context board" on every user turn and forwards anything relevant to the main agent's inbox before it starts responding — like a background pre-fetch.
@@ -161,6 +163,7 @@ Gemini CLI's **browser_agent** is the only one in this group with a dedicated fu
 | Claude Code | File-based (4 typed categories: `user`, `feedback`, `project`, `reference`; indexed via `MEMORY.md`) | Per-project directory |
 | GitHub Copilot CLI | SQLite database (`session_store`) with FTS5 full-text search + dynamic `context_board` | Per-repo, cross-session queryable |
 | Gemini CLI | `save_memory` tool with `global` and `project` scope; stored in `GEMINI.md` | Two scopes: global preferences vs per-project |
+| OpenCode | None | — |
 | Pi | None | — |
 
 Claude Code has the most prescriptive memory taxonomy. It defines exactly four memory types, each with when to write it, how to structure the body, and what *not* to save. It explicitly prohibits saving code patterns, git history, or ephemeral task details — the reasoning being these should be derived from live sources rather than recalled from potentially stale notes.
@@ -181,6 +184,7 @@ Each agent has a named file it looks for in the project root (and sometimes pare
 | Gemini CLI | `GEMINI.md` |
 | Codex CLI | `AGENTS.md` |
 | GitHub Copilot CLI | `plan.md` (session artifact, not committed) |
+| OpenCode | None mentioned |
 | Pi | Any file configured via `contextFiles` option |
 
 These files serve the same purpose — per-repo standing instructions — but the naming reveals each company's branding instincts. Notably, Gemini CLI specifies a three-level hierarchy: `<global_context>` < `<extension_context>` < `<project_context>`, with project context always winning conflicts. Claude Code handles the same via CLAUDE.md precedence rules documented in the harness.
@@ -195,6 +199,7 @@ These files serve the same purpose — per-repo standing instructions — but th
 | GitHub Copilot CLI | `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` (real GitHub user ID: 223556219) |
 | Gemini CLI | None |
 | Codex CLI | None |
+| OpenCode | None |
 | Pi | None |
 
 Copilot's co-author trailer uses a real GitHub account (user ID 223556219), which means its contributions show up on GitHub's contribution graphs and can be filtered in `git log`. Claude Code uses a `noreply@` address — valid git authorship but no GitHub profile attached.
@@ -209,6 +214,7 @@ Copilot's co-author trailer uses a real GitHub account (user ID 223556219), whic
 | Codex CLI | Default, Plan (via `collaboration_mode`) |
 | Gemini CLI | Autonomous (YOLO), normal |
 | Claude Code | Plan mode (via `EnterPlanMode` tool) |
+| OpenCode | None |
 | Pi | None — fully driven by tool selection and `customPrompt` |
 
 Copilot CLI's **Fleet mode** is the most distinctive: it reads the SQL todo list, dispatches multiple sub-agents in parallel to handle independent todos, and coordinates results — functioning as an orchestrator over a pool of workers. Gemini CLI explicitly calls its autonomous mode "YOLO" in the prompt text.
@@ -223,6 +229,7 @@ Copilot CLI's **Fleet mode** is the most distinctive: it reads the SQL todo list
 | Gemini CLI | "A senior software engineer and collaborative peer programmer" |
 | GitHub Copilot CLI | Neutral / task-focused; no named persona |
 | Claude Code | No explicit persona — the voice comes through style rules: "Brief is good — silent is not" |
+| OpenCode | No persona — workmanlike CLI focus; "fewer than 3 lines of text per response" |
 | Pi | No persona — defers entirely to the LLM's default character |
 
 Codex CLI is the only agent that treats personality as a first-class, swappable module. The `{{ personality }}` token in the base prompt is replaced at runtime with a different block depending on whether the user has selected the "friendly" or "pragmatic" persona — the rest of the instructions remain identical.
@@ -239,6 +246,7 @@ Codex also contains one of the most memorable rules in any of these prompts: *"N
 | Claude Code | Yes — destructive git command blocklist; never `--no-verify`; parallel tool calls require independent operations |
 | Gemini CLI | Yes — explains modifying commands before running; no `ask_user` for permission |
 | Codex CLI | Yes — never `git reset --hard` without explicit request; ASCII-only file edits by default |
+| OpenCode | Minimal — explain modifying commands before running; no further defenses |
 | Pi | Minimal — "Explain commands that modify the file system" |
 
 Copilot CLI's shell injection section is the most technical: it names the specific bash expansion syntax being defended against (`${var@P}`) and explains why it's dangerous. This is the only prompt that explicitly addresses prompt-injection-via-shell as a distinct threat category.
@@ -255,26 +263,29 @@ Copilot CLI's shell injection section is the most technical: it names the specif
 
 **Codex CLI** has the richest frontend / UI guidance of any agent here — two full pages covering icon libraries (lucide), border radius limits (8px or less), hero layouts, gradient restrictions, font scaling, palette monotony detection, and more. It also has the only explicit `{{ personality }}` pluggability system and the only dual-channel response model (commentary updates during work, final message when done).
 
+**OpenCode** is the only agent that includes **worked conversation examples** directly in the system prompt — a short dialogue log showing how the model should handle specific user inputs. The examples go from trivially terse (`"1 + 2" → "3"`, `"is 13 a prime number?" → "true"`) to a full multi-step refactoring walkthrough with tool calls annotated inline. No other agent teaches by example like this. OpenCode also shares the most DNA with Gemini CLI: both follow a Research → Plan → Implement → Verify loop, both cap text output at 3 lines per response, and both avoid the sub-agent / memory complexity of Claude Code and Copilot CLI. The difference is that Gemini CLI is much more verbose about the reasoning behind each rule, while OpenCode states mandates flatly and trusts the examples to fill in the gaps.
+
 **Pi** is the only fully open-source agent in this group (MIT license, source on GitHub). Its core prompt is intentionally thin — the philosophy is that complexity belongs in extensions and skills, not in a massive hardcoded string. The prompt itself has no memory, no modes, no sub-agents; everything is assembled programmatically from whatever tools and context files are active. It's the most hackable of the five.
 
 ---
 
 ### Feature matrix
 
-| Feature | Claude Code | Copilot CLI | Gemini CLI | Codex CLI | Pi |
-|---------|:-----------:|:-----------:|:----------:|:---------:|:--:|
-| Sub-agents | ✓ | ✓ | ✓ | — | — |
-| Persistent memory | ✓ | ✓ | ✓ | ✓ | — |
-| SQL session history | — | ✓ | — | — | — |
-| Pluggable personality | — | — | — | ✓ | — |
-| Named modes (autopilot etc.) | partial | ✓ | ✓ | ✓ | — |
-| Prompt injection defense | ✓ | ✓ | partial | partial | — |
-| Git commit co-author | ✓ | ✓ | — | — | — |
-| Browser automation agent | — | — | ✓ | — | — |
-| Open source | — | — | — | — | ✓ |
-| Project context file | CLAUDE.md | plan.md | GEMINI.md | AGENTS.md | configurable |
-| Skills / slash commands | ✓ | — | ✓ | — | ✓ |
-| Topic progress updates | — | — | ✓ | via commentary | — |
+| Feature | Claude Code | Copilot CLI | Gemini CLI | Codex CLI | OpenCode | Pi |
+|---------|:-----------:|:-----------:|:----------:|:---------:|:--------:|:--:|
+| Sub-agents | ✓ | ✓ | ✓ | — | — | — |
+| Persistent memory | ✓ | ✓ | ✓ | ✓ | — | — |
+| SQL session history | — | ✓ | — | — | — | — |
+| Pluggable personality | — | — | — | ✓ | — | — |
+| Named modes (autopilot etc.) | partial | ✓ | ✓ | ✓ | — | — |
+| Prompt injection defense | ✓ | ✓ | partial | partial | — | — |
+| Git commit co-author | ✓ | ✓ | — | — | — | — |
+| Browser automation agent | — | — | ✓ | — | — | — |
+| Open source | — | — | — | — | — | ✓ |
+| Project context file | CLAUDE.md | plan.md | GEMINI.md | AGENTS.md | — | configurable |
+| Skills / slash commands | ✓ | — | ✓ | — | /help /bug | ✓ |
+| Topic progress updates | — | — | ✓ | via commentary | — | — |
+| Worked examples in prompt | — | — | — | — | ✓ | — |
 
 ---
 
