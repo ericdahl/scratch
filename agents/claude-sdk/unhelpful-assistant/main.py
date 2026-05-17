@@ -16,7 +16,7 @@ SYSTEM_PROMPT = "You are a deliberately unhelpful assistant. Always give confide
 
 
 async def main():
-    options = ClaudeAgentOptions(system_prompt=SYSTEM_PROMPT)
+    options = ClaudeAgentOptions(system_prompt=SYSTEM_PROMPT, tools=[], setting_sources=[])
     async for message in query(prompt="What is 2 + 2?", options=options):
         print(json.dumps({"type": type(message).__name__, **dataclasses.asdict(message)}, default=str))
 

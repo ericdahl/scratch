@@ -14,13 +14,23 @@ import anthropic
 
 def log_request(request: httpx.Request) -> None:
     body = json.loads(request.content)
-    print(json.dumps({"direction": "REQUEST", "url": str(request.url), "body": body}, indent=2))
+    print(json.dumps({
+        "direction": "REQUEST",
+        "url": str(request.url),
+        "headers": dict(request.headers),
+        "body": body,
+    }, indent=2))
 
 
 def log_response(response: httpx.Response) -> None:
     response.read()
     body = json.loads(response.content)
-    print(json.dumps({"direction": "RESPONSE", "status": response.status_code, "body": body}, indent=2))
+    print(json.dumps({
+        "direction": "RESPONSE",
+        "status": response.status_code,
+        "headers": dict(response.headers),
+        "body": body,
+    }, indent=2))
 
 
 client = anthropic.Anthropic(
