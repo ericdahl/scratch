@@ -16,6 +16,7 @@ system-prompts/
 ├── cursor/             Cursor IDE agent
 ├── windsurf/           Windsurf (Codeium) IDE agent
 ├── opencode/           OpenCode terminal agent
+├── pi/                 Pi coding agent (badlogic/pi-mono)
 ├── augment-code/       Augment Code agent
 ├── devin/              Devin AI agent
 ├── manus/              Manus AI agent
@@ -75,6 +76,8 @@ system-prompts/
 
 | File | Description |
 |------|-------------|
+| `pi/pi-coding-agent.md` | Pi coding agent (badlogic) — dynamically constructed prompt |
+| `pi/system-prompt.ts` | Pi `buildSystemPrompt()` TypeScript source |
 | `cursor/cursor.md` | Cursor IDE agent |
 | `cursor/cursor-agent-2025-09-03.txt` | Cursor agent prompt (Sep 2025) |
 | `cursor/cursor-chat.txt` | Cursor chat prompt |
@@ -117,10 +120,7 @@ Prompts were sourced from these public repositories:
 - [asgeirtj/system_prompts_leaks](https://github.com/asgeirtj/system_prompts_leaks) — ChatGPT, Claude, Gemini, Grok, Perplexity, and more
 - [x1xhlol/system-prompts-and-models-of-ai-tools](https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools) — Cursor, Windsurf, Devin, Replit, Lovable, v0, Manus, Augment Code
 - [Piebald-AI/claude-code-system-prompts](https://github.com/Piebald-AI/claude-code-system-prompts) — Claude Code sub-agent prompts, extracted from Claude Code source
-
-## Notes on Pi (Inflection AI)
-
-Pi's system prompt has not been publicly leaked/extracted. Inflection AI has not published it, and it does not appear in any of the major collections above.
+- [badlogic/pi-mono](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) — Pi coding agent open-source TypeScript source
 
 ## Disclaimer
 
