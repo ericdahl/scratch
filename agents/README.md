@@ -8,6 +8,7 @@ Experiments comparing the `claude-agent-sdk` (Claude Code wrapper) against the `
 agents/
 ├── anthropic-sdk/
 │   ├── hello-world/      # full HTTP req/response logging via httpx hooks
+│   ├── prompt-caching/   # demonstrates cache hit/miss latency and cost savings
 │   └── quick-start/      # minimal direct API call
 └── claude-sdk/
     ├── json-output/          # all 4 SDK message types as JSON
@@ -94,3 +95,46 @@ claude -p "..." --output-format json | jq '{duration_ms, duration_api_ms}'
 - CLI startup overhead: ~2s (Node.js boot, settings load, MCP server connections)
 
 The direct `anthropic` SDK eliminates this: total wall time was 2.9s, matching the API time alone.
+
+---
+
+## Prompt Caching (`anthropic-sdk/prompt-caching`)
+
+Demo: three sequential requests using an ~8,600-token synthetic API reference doc as the system prompt.
+
+1. **Baseline** — no `cache_control`, cold every time
+2. **Cache create** — `cache_control: {type: ephemeral}` added, first call writes cache
+3. **Cache hit** — identical request, reads from cache
+
+```
+                              baseline (no cache)    cache create       cache hit
+------------------------------------------------------------------------------
+ttft_ms                                    817             813             711
+total_ms                                  1356            1391            1368
+input                                     8615               3               3
+cache_creation                               0            8612              12
+cache_read                                   0               0            8600
+output                                      37              39              39
+cost_usd                                0.0264          0.0329          0.0032
+```
+
+### Findings
+
+**Cost**: Cache hit ($0.0032) is ~8× cheaper than baseline ($0.0264). Scales linearly with request volume — a shared 8k-token system prompt sent 1,000×/day costs ~$26/day uncached vs ~$3.20/day with caching.
+
+**TTFT**: 106ms faster on cache hit (817ms → 711ms, ~13% improvement). Modest here because generation time (~575ms for 38 output tokens at ~15ms/token) dominates total latency. TTFT savings matter more with larger documents and shorter outputs.
+
+**Token accounting**: On cache runs, `input` drops to just 3 tokens (the user message). The system prompt tokens are reclassified entirely as `cache_creation` or `cache_read` — they don't appear in regular `input` at all. This is how billing works: pay the creation rate ($3.75/MTok) once, then the read rate ($0.30/MTok) on every hit.
+
+**Cache boundary**: The tiny `cache_creation: 12` on the cache hit run is the user message and request framing just outside the cached prefix boundary — normal behaviour.
+
+### Sonnet 4.6 pricing used
+
+| Token type | Price/MTok |
+|---|---|
+| Input (uncached) | $3.00 |
+| Cache creation | $3.75 |
+| Cache read | $0.30 |
+| Output | $15.00 |
+
+Cache read is **10% of normal input cost**. Cache creation is a one-time 25% premium over normal input, amortised across all subsequent hits.
