@@ -1,0 +1,400 @@
+<title>Inside a /v1/messages Call</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:   #e9edf1;
+    --surface:  #ffffff;
+    --raised:   #f3f6f9;
+    --ink:      #131a22;
+    --muted:    #5b6873;
+    --faint:    #8592a0;
+    --line:     #d2dae2;
+    --line-soft:#e2e8ee;
+
+    --seg-system:   #3f6f9e;
+    --seg-tools:    #b25f34;
+    --seg-messages: #4e8060;
+    --seg-envelope: #7a6d99;
+    --signal:       #a8710e;
+    --signal-bg:    #f6ecd6;
+
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --cond: "IBM Plex Sans Condensed", "IBM Plex Sans", ui-sans-serif, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --step-0: 0.875rem;
+    --step-1: 1rem;
+    --step-2: 1.35rem;
+    --step-3: 2rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #0e1319;
+      --surface:  #161c24;
+      --raised:   #1c242e;
+      --ink:      #e3eaf1;
+      --muted:    #98a5b3;
+      --faint:    #6d7b89;
+      --line:     #29323d;
+      --line-soft:#212933;
+
+      --seg-system:   #6fa3d4;
+      --seg-tools:    #e08a58;
+      --seg-messages: #74b48c;
+      --seg-envelope: #a596c8;
+      --signal:       #e0a93c;
+      --signal-bg:    #3a2f16;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:   #0e1319;
+    --surface:  #161c24;
+    --raised:   #1c242e;
+    --ink:      #e3eaf1;
+    --muted:    #98a5b3;
+    --faint:    #6d7b89;
+    --line:     #29323d;
+    --line-soft:#212933;
+
+    --seg-system:   #6fa3d4;
+    --seg-tools:    #e08a58;
+    --seg-messages: #74b48c;
+    --seg-envelope: #a596c8;
+    --signal:       #e0a93c;
+    --signal-bg:    #3a2f16;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--step-1);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 72px; }
+
+  /* ---------- identity strip ---------- */
+  .ident {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px;
+    padding: 26px 0 18px; border-bottom: 2px solid var(--ink);
+  }
+  .ident h1 {
+    font-family: var(--cond); font-weight: 700; font-size: var(--step-3);
+    margin: 0; letter-spacing: -0.01em; text-wrap: balance;
+  }
+  .verb {
+    font-family: var(--mono); font-size: var(--step-0); font-weight: 500;
+    color: var(--muted); word-break: break-all;
+  }
+  .ident .grow { flex: 1 1 auto; }
+  .weight {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: var(--step-2); font-weight: 500; white-space: nowrap;
+  }
+  .weight small { display: block; font-size: 0.62em; color: var(--muted); letter-spacing: .08em;
+                  text-transform: uppercase; font-family: var(--cond); font-weight: 600; }
+
+  /* ---------- byte budget ---------- */
+  .budget { margin: 30px 0 8px; }
+  .eyebrow {
+    font-family: var(--cond); font-weight: 600; text-transform: uppercase;
+    letter-spacing: .1em; font-size: 0.72rem; color: var(--muted); margin: 0 0 10px;
+  }
+  .bar { display: flex; height: 40px; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); }
+  .bar span { display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 26px; margin-top: 14px; }
+  .legend div { display: flex; align-items: baseline; gap: 8px; font-size: var(--step-0); }
+  .dot { width: 10px; height: 10px; border-radius: 2px; flex: none; transform: translateY(1px); }
+  .legend b { font-family: var(--cond); font-weight: 600; letter-spacing: .02em; }
+  .legend .n { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+
+  .note {
+    margin: 22px 0 0; padding: 14px 16px; background: var(--surface);
+    border-left: 3px solid var(--signal); border-radius: 0 3px 3px 0;
+    font-size: var(--step-0); color: var(--muted); max-width: 68ch;
+  }
+  .note b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- tabs ---------- */
+  .tabs { display: flex; gap: 2px; margin: 36px 0 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tabs button {
+    appearance: none; border: 1px solid transparent; border-bottom: none;
+    background: none; cursor: pointer; color: var(--muted);
+    font-family: var(--cond); font-weight: 600; font-size: 0.95rem;
+    letter-spacing: .04em; text-transform: uppercase;
+    padding: 10px 16px; border-radius: 3px 3px 0 0; margin-bottom: -1px;
+  }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button[aria-selected="true"] {
+    background: var(--surface); border-color: var(--line);
+    color: var(--ink); box-shadow: inset 0 2px 0 var(--seg-system);
+  }
+  .tabs button:focus-visible { outline: 2px solid var(--seg-system); outline-offset: 2px; }
+  .tabs .count { font-family: var(--mono); font-weight: 400; opacity: .65; margin-left: 6px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-top: none;
+           padding: 20px; border-radius: 0 0 4px 4px; }
+
+  .filter {
+    width: 100%; max-width: 420px; margin: 0 0 18px;
+    font-family: var(--mono); font-size: var(--step-0);
+    padding: 9px 12px; color: var(--ink);
+    background: var(--raised); border: 1px solid var(--line); border-radius: 3px;
+  }
+  .filter:focus-visible { outline: 2px solid var(--seg-system); outline-offset: 1px; }
+
+  /* ---------- rows ---------- */
+  .rows { display: flex; flex-direction: column; gap: 1px; background: var(--line-soft); }
+  details { background: var(--surface); }
+  summary {
+    display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 14px;
+    padding: 11px 4px 11px 12px; cursor: pointer; list-style: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover { background: var(--raised); }
+  summary:focus-visible { outline: 2px solid var(--seg-system); outline-offset: -2px; }
+  .rname { font-family: var(--mono); font-weight: 500; font-size: var(--step-0);
+           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rname em { font-style: normal; color: var(--muted); font-weight: 400; }
+  .rbytes { font-family: var(--mono); font-variant-numeric: tabular-nums;
+            font-size: var(--step-0); color: var(--muted); }
+  .track { width: 110px; height: 6px; background: var(--line-soft); border-radius: 3px; overflow: hidden; }
+  .track i { display: block; height: 100%; }
+
+  .tag {
+    font-family: var(--cond); font-weight: 600; font-size: 0.68rem;
+    text-transform: uppercase; letter-spacing: .07em;
+    padding: 2px 7px; border-radius: 2px; white-space: nowrap;
+  }
+  .tag.cache { background: var(--signal-bg); color: var(--signal); }
+  .tag.kind  { background: var(--raised); color: var(--muted); }
+
+  .body { padding: 4px 12px 20px; }
+  pre {
+    margin: 0; padding: 14px 16px; background: var(--raised);
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    font-family: var(--mono); font-size: 0.8rem; line-height: 1.6;
+    white-space: pre-wrap; word-break: break-word;
+    max-height: 460px; overflow: auto;
+  }
+  pre.wide { white-space: pre; word-break: normal; overflow-x: auto; }
+  .subhead {
+    font-family: var(--cond); font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; font-size: 0.7rem; color: var(--faint);
+    margin: 14px 0 6px;
+  }
+  .msg-head {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line);
+  }
+  .msg-head:first-child { margin-top: 0; }
+  .msg-head h3 { font-family: var(--cond); font-weight: 700; font-size: 1.05rem; margin: 0;
+                 text-transform: uppercase; letter-spacing: .05em; }
+  .empty { color: var(--faint); font-size: var(--step-0); padding: 10px 12px; }
+  footer { margin-top: 30px; font-size: 0.78rem; color: var(--faint); font-family: var(--mono); }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  @media (max-width: 620px) {
+    summary { grid-template-columns: 1fr auto; }
+    .track { display: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="ident">
+    <div class="grow">
+      <h1>Inside a /v1/messages call</h1>
+      <div class="verb" id="verb"></div>
+    </div>
+    <div class="weight"><small>on the wire</small><span id="total"></span></div>
+  </header>
+
+  <section class="budget">
+    <p class="eyebrow">Where the bytes go</p>
+    <div class="bar" id="bar"></div>
+    <div class="legend" id="legend"></div>
+    <p class="note" id="note"></p>
+  </section>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div class="panel">
+    <input class="filter" id="filter" type="search" placeholder="Filter by name or content…" aria-label="Filter rows">
+    <div id="panels"></div>
+  </div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script type="application/json" id="payload">__DATA__</script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById("payload").textContent);
+  var fmt = function (n) { return n.toLocaleString("en-US"); };
+  var kb  = function (n) { return (n / 1024).toFixed(1) + " KB"; };
+  var esc = function (s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  };
+
+  document.getElementById("verb").textContent =
+    "POST https://api.anthropic.com/v1/messages?beta=true  ·  " + D.model;
+  document.getElementById("total").textContent = kb(D.total);
+
+  /* ---- byte budget ---- */
+  var order = ["tools", "system", "messages", "envelope"];
+  var names = { tools: "Tool schemas", system: "System prompt",
+                messages: "Messages", envelope: "Envelope" };
+  var bar = document.getElementById("bar"), leg = document.getElementById("legend");
+  order.forEach(function (k) {
+    var pct = D.seg[k] / D.total * 100;
+    var s = document.createElement("span");
+    s.style.width = pct + "%";
+    s.style.background = "var(--seg-" + k + ")";
+    s.title = names[k] + " — " + fmt(D.seg[k]) + " bytes (" + pct.toFixed(1) + "%)";
+    bar.appendChild(s);
+    var d = document.createElement("div");
+    d.innerHTML = '<span class="dot" style="background:var(--seg-' + k + ')"></span>' +
+                  "<b>" + names[k] + "</b>" +
+                  '<span class="n">' + kb(D.seg[k]) + " · " + pct.toFixed(1) + "%</span>";
+    leg.appendChild(d);
+  });
+
+  var toolPct = (D.seg.tools / D.total * 100).toFixed(0);
+  document.getElementById("note").innerHTML =
+    "Tool definitions are <b>" + toolPct + "%</b> of this request — " +
+    (D.seg.tools / D.seg.system).toFixed(1) + "× the system prompt. " +
+    "Only " + D.tools.length + " schemas are sent eagerly; the rest are deferred behind " +
+    "<code>ToolSearch</code> and referenced by name only. Amber marks the " +
+    D.cacheCount + " <b>cache_control</b> breakpoints that let all of this be resent each turn " +
+    "at cache-read rates.";
+
+  /* ---- tabs ---- */
+  var maxTool = D.tools.length ? D.tools[0].bytes : 1;
+  var maxSys  = Math.max.apply(null, D.system.map(function (b) { return b.bytes; }).concat([1]));
+
+  function row(name, sub, bytes, frac, color, tags, bodyHTML) {
+    var d = document.createElement("details");
+    var tagHTML = (tags || []).map(function (t) {
+      return '<span class="tag ' + t.cls + '">' + esc(t.text) + "</span>";
+    }).join("");
+    d.innerHTML =
+      "<summary>" +
+        '<span class="rname">' + esc(name) + (sub ? " <em>" + esc(sub) + "</em>" : "") + "</span>" +
+        '<span class="track"><i style="width:' + (frac * 100).toFixed(1) +
+          "%;background:var(--seg-" + color + ')"></i></span>' +
+        '<span class="rbytes">' + fmt(bytes) + " B " + tagHTML + "</span>" +
+      "</summary>" +
+      '<div class="body">' + bodyHTML + "</div>";
+    d.dataset.hay = (name + " " + (sub || "") + " " + bodyHTML).toLowerCase();
+    return d;
+  }
+
+  var panels = {};
+
+  /* System */
+  var pSys = document.createElement("div"); pSys.className = "rows";
+  D.system.forEach(function (b) {
+    var tags = b.cache ? [{ cls: "cache", text: "cache " + (b.cache.ttl || "") +
+                            (b.cache.scope ? " · " + b.cache.scope : "") }] : [];
+    var first = (b.text.split("\n").find(function (l) { return l.trim(); }) || "").trim();
+    pSys.appendChild(row("system[" + b.idx + "]", first.slice(0, 64),
+      b.bytes, b.bytes / maxSys, "system", tags,
+      "<pre>" + esc(b.text) + "</pre>"));
+  });
+  panels.system = pSys;
+
+  /* Tools */
+  var pTools = document.createElement("div"); pTools.className = "rows";
+  D.tools.forEach(function (t) {
+    pTools.appendChild(row(t.name, "", t.bytes, t.bytes / maxTool, "tools", [],
+      '<div class="subhead">Description</div><pre>' + esc(t.desc) +
+      '</pre><div class="subhead">Input schema</div><pre class="wide">' + esc(t.schema) + "</pre>"));
+  });
+  panels.tools = pTools;
+
+  /* Messages */
+  var pMsg = document.createElement("div");
+  D.messages.forEach(function (m) {
+    var h = document.createElement("div"); h.className = "msg-head";
+    h.innerHTML = "<h3>" + esc(m.role) + "</h3>" +
+      '<span class="rbytes">message[' + m.idx + "] · " + fmt(m.bytes) + " B · " +
+      m.blocks.length + " block" + (m.blocks.length === 1 ? "" : "s") + "</span>";
+    pMsg.appendChild(h);
+    var rows = document.createElement("div"); rows.className = "rows";
+    var mx = Math.max.apply(null, m.blocks.map(function (b) { return b.bytes; }).concat([1]));
+    m.blocks.forEach(function (b) {
+      var tags = [{ cls: "kind", text: b.kind }];
+      if (b.cache) tags.push({ cls: "cache", text: "cache " + (b.cache.ttl || "") });
+      rows.appendChild(row(b.label || b.kind, "", b.bytes, b.bytes / mx, "messages", tags,
+        "<pre>" + esc(b.body) + "</pre>"));
+    });
+    pMsg.appendChild(rows);
+  });
+  panels.messages = pMsg;
+
+  /* Envelope */
+  var pEnv = document.createElement("div");
+  pEnv.innerHTML = '<pre class="wide">' + esc(D.envelope) + "</pre>";
+  panels.envelope = pEnv;
+
+  var defs = [
+    { id: "tools",    label: "Tools",    n: D.tools.length },
+    { id: "system",   label: "System",   n: D.system.length },
+    { id: "messages", label: "Messages", n: D.messages.length },
+    { id: "envelope", label: "Envelope", n: null }
+  ];
+  var tabs = document.getElementById("tabs"), host = document.getElementById("panels");
+  defs.forEach(function (t, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", i === 0 ? "true" : "false");
+    b.innerHTML = t.label + (t.n != null ? '<span class="count">' + t.n + "</span>" : "");
+    b.addEventListener("click", function () { select(t.id); });
+    tabs.appendChild(b);
+    panels[t.id].hidden = i !== 0;
+    host.appendChild(panels[t.id]);
+  });
+
+  function select(id) {
+    defs.forEach(function (t, i) {
+      tabs.children[i].setAttribute("aria-selected", String(t.id === id));
+      panels[t.id].hidden = t.id !== id;
+    });
+    applyFilter();
+  }
+
+  var filter = document.getElementById("filter");
+  function applyFilter() {
+    var q = filter.value.trim().toLowerCase();
+    Object.keys(panels).forEach(function (k) {
+      var p = panels[k];
+      if (p.hidden) return;
+      var any = false;
+      p.querySelectorAll("details").forEach(function (d) {
+        var hit = !q || d.dataset.hay.indexOf(q) !== -1;
+        d.hidden = !hit;
+        if (hit) any = true;
+      });
+      p.querySelectorAll(".msg-head").forEach(function (h) {
+        var g = h.nextElementSibling, vis = false;
+        if (g) g.querySelectorAll("details").forEach(function (d) { if (!d.hidden) vis = true; });
+        h.hidden = !vis;
+      });
+      var old = p.querySelector(".empty");
+      if (old) old.remove();
+      if (!any && p.querySelector("details")) {
+        var e = document.createElement("p");
+        e.className = "empty"; e.textContent = "No rows match “" + filter.value + "”.";
+        p.appendChild(e);
+      }
+    });
+  }
+  filter.addEventListener("input", applyFilter);
+
+  document.getElementById("foot").textContent =
+    "Captured via mitmproxy · " + D.source + " · identifiers redacted";
+})();
+</script>

@@ -1,0 +1,5 @@
+# Captures contain live auth headers, CLAUDE.md contents, and local paths.
+dumps/
+*.mitm
+*.log
+payload*.html
